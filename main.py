@@ -12,7 +12,7 @@ import threading
 import multiprocessing
 
 
-VERSION = "0.0.1"
+VERSION = "0.1.0"
 
 cpu_cores = math.floor(multiprocessing.cpu_count() / 2)
 num_threads = 100
