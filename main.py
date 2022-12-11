@@ -13,7 +13,7 @@ import threading
 import multiprocessing
 
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 cpu_cores = math.floor(multiprocessing.cpu_count() * .8)
 num_threads = 300
