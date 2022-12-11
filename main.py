@@ -6,6 +6,7 @@ import math
 import numpy
 import ftplib
 import random
+import socket
 import argparse
 import traceback
 import threading
@@ -14,8 +15,8 @@ import multiprocessing
 
 VERSION = "0.1.0"
 
-cpu_cores = math.floor(multiprocessing.cpu_count() / 2)
-num_threads = 100
+cpu_cores = math.floor(multiprocessing.cpu_count() * .8)
+num_threads = 300
 timeout = 10
 
 processes = []
@@ -131,11 +132,13 @@ def login(ftp_host):
         # Attempt to login to the FTP server
         ftp.login("anonymous", "password")
 
+        # Issue to command to make sure the server works
+        ftp.retrlines("LIST", print_result)
+
+        print(f"{ftp_host}\n\n")
+
         # If the server is found add it to list
         servers_found.append(ftp_host)
-
-        # If the login was successful, log a message
-        print(f"Successfully logged in to {ftp_host}")
 
     except ftplib.error_perm:  # Login failed
         pass
@@ -153,10 +156,20 @@ def login(ftp_host):
         pass
     except ConnectionResetError:  # RST
         pass
-    except TimeoutError:  # Socket timeout
+    except TimeoutError:
+        pass
+    except socket.timeout:  # Socket timeout
         pass
     except Exception as e:  # Generic catch for debugging
         print(traceback.print_exc())
+
+
+# Function print result is a callback
+# function called by the ftplib retrlines
+# function and prints the result of that
+# command
+def print_result(result):
+    print(f"\n\n{result}")
 
 
 if __name__ == "__main__":
