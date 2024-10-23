@@ -1,186 +1,42 @@
-# FTP Smasher
-# Author: Will Hearn
-
-import os
-import math
-import numpy
-import ftplib
-import random
-import socket
+from src.config import ScannerConfig
+from src.scanner import FTPScanner
 import argparse
-import traceback
-import threading
-import multiprocessing
+import math
+import os
+from pathlib import Path
 
 
-VERSION = "0.2.0"
+def main():
+    parser = argparse.ArgumentParser(description="FTP Server Scanner")
+    parser.add_argument("-i", "--input-file", type=str, required=True,
+                        help="File containing list of IPs to scan")
+    parser.add_argument("-t", "--threads", type=int, default=300,
+                        help="Number of threads per process")
+    parser.add_argument("-c", "--cpu-cores", type=int,
+                        default=math.floor(os.cpu_count() * 0.8),
+                        help="Number of CPU cores to use")
+    parser.add_argument("--timeout", type=int, default=10,
+                        help="Connection timeout in seconds")
 
-cpu_cores = math.floor(multiprocessing.cpu_count() * .8)
-num_threads = 300
-timeout = 10
+    args = parser.parse_args()
 
-processes = []
-threads = []
-ip_list = []
-servers_found = []
+    # Initialize configuration
+    config = ScannerConfig(
+        cpu_cores=args.cpu_cores,
+        num_threads=args.threads,
+        timeout=args.timeout
+    )
 
-ip_input_file = ""
+    # Create and run scanner
+    scanner = FTPScanner(config)
+    found_servers = scanner.scan(args.input_file)
 
-# Locks
-t_ip_list_lock = threading.Lock()
-
-
-# Clear screen
-def cls():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-
-# Function init_args initializes
-# arguments for the program
-def init_args():
-    parser = argparse.ArgumentParser(prog="FTP Smasher")
-
-    # Input IP file argument
-    parser.add_argument("-i", "--input-file", type=str,
-                        help="Scan a list of IPs from a file")
-
-    return parser.parse_args()
-
-
-# Function parse_args parses command
-# line arguments
-def parse_args(arguments):
-    global ip_input_file
-
-    # Input IP file argument
-    if arguments.input_file:
-        ip_input_file = arguments.input_file
-        read_ips()
-    else:
-        print("No IP File Specified...\nExiting")
-        exit(0)
-
-
-# Read IPs in from a file
-def read_ips():
-    print("Reading IPs...")
-    with open(ip_input_file, "r") as f:
-        for line in f:
-            ip_list.append(line.rstrip())
-    f.close()
-    random.shuffle(ip_list)
-
-
-# Initialize processes
-def init_processes():
-    # Split up ip list into many arrays
-    ip_list_split = numpy.array_split(ip_list, cpu_cores)
-
-    # Rebuild lists and send off to target process
-    for i in range(cpu_cores):
-        ip_list_local = ip_list_split[i].tolist()
-        p = multiprocessing.Process(target=p_main, args=(ip_list_local,))
-        p.start()
-        processes.append(p)
-
-
-# Main method for processes
-def p_main(ip_list_local):
-
-    # Initialize global variables
-    init_globals(ip_list_local)
-
-    # Initialize threads
-    for i in range(num_threads):
-        t = threading.Thread(target=t_main)
-        t.start()
-        threads.append(t)
-
-
-# Function init_globals takes variables
-# passed by the original python process
-# and sets them inside of the current
-# process
-def init_globals(ip_list_local):
-    global ip_list
-
-    ip_list = ip_list_local
-
-
-# Main method for threads
-def t_main():
-    # Make sure ip list has work left
-    while len(ip_list) > 0:
-        try:
-            # Pop off list with mutex
-            with t_ip_list_lock:
-                ip = ip_list.pop()
-
-            # Attempt to login
-            login(ip)
-        except Exception as e:  # Generic clause for debugging
-            print(e)
-
-
-# Function login attempts to
-# login to an ftp server
-def login(ftp_host):
-    try:
-        # Create a new FTP client
-        ftp = ftplib.FTP(ftp_host, timeout=timeout)
-
-        # Attempt to login to the FTP server
-        ftp.login("anonymous", "password")
-
-        # Issue to command to make sure the server works
-        ftp.retrlines("LIST", print_result)
-
-        print(f"{ftp_host}\n\n")
-
-        # If the server is found add it to list
-        servers_found.append(ftp_host)
-
-    except ftplib.error_perm:  # Login failed
-        pass
-    except ftplib.error_temp:
-        pass
-    except ftplib.error_proto:
-        pass
-    except ftplib.error_reply:
-        pass
-    except UnicodeDecodeError:
-        pass
-    except EOFError:
-        pass
-    except ConnectionRefusedError:
-        pass
-    except ConnectionResetError:  # RST
-        pass
-    except TimeoutError:
-        pass
-    except socket.timeout:  # Socket timeout
-        pass
-    except Exception as e:  # Generic catch for debugging
-        print(traceback.print_exc())
-
-
-# Function print result is a callback
-# function called by the ftplib retrlines
-# function and prints the result of that
-# command
-def print_result(result):
-    print(f"\n\n{result}")
+    # Output results
+    print(f"\nScan Complete - Found {len(found_servers)} servers")
+    if found_servers:
+        print("\nFound Servers:")
+        print("\n".join(found_servers))
 
 
 if __name__ == "__main__":
-    # Clear screen
-    cls()
-
-    # Initialize arguments
-    args = init_args()
-
-    # Parse command line args
-    parse_args(args)
-
-    # Initialize processes
-    init_processes()
+    main()
