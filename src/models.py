@@ -4,16 +4,17 @@ from typing import Optional
 from contextlib import contextmanager
 import threading
 
+
 class Database:
     _local = threading.local()
-    
+
     def __init__(self, db_path: str = "ftp_scan.db"):
         self.db_path = db_path
         # Initialize the main connection for schema creation
         with self.get_connection() as conn:
             with conn:  # This ensures proper transaction handling
                 self.init_db(conn)
-    
+
     @contextmanager
     def get_connection(self):
         """Get a thread-local database connection"""
@@ -22,7 +23,7 @@ class Database:
             # Create a new connection for this thread
             self._local.connection = sqlite3.connect(self.db_path)
             self._local.connection.row_factory = sqlite3.Row
-        
+
         try:
             yield self._local.connection
         except Exception as e:
@@ -95,7 +96,7 @@ class Database:
                 cursor.close()
                 return dir_id
 
-    def add_file(self, directory_id: int, name: str, size: Optional[int], 
+    def add_file(self, directory_id: int, name: str, size: Optional[int],
                  modified: Optional[datetime], permissions: Optional[str]):
         """Add a file to the database"""
         with self.get_connection() as conn:
@@ -106,7 +107,7 @@ class Database:
                     """, (directory_id, name, size, modified, permissions))
                 cursor.close()
 
-    def get_statistics(self) -> dict:
+    def generate_scan_summary_statistics(self) -> dict:
         """Get scanning statistics from the database"""
         with self.get_connection() as conn:
             stats = {}
@@ -116,7 +117,8 @@ class Database:
                 stats['total_servers'] = cursor.fetchone()[0]
                 cursor.close()
 
-                cursor = conn.execute('SELECT COUNT(*) FROM servers WHERE status = "success"')
+                cursor = conn.execute(
+                    'SELECT COUNT(*) FROM servers WHERE status = "success"')
                 stats['successful_servers'] = cursor.fetchone()[0]
                 cursor.close()
 

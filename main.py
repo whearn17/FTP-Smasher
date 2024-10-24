@@ -29,7 +29,7 @@ def main():
 
     # Create and run scanner
     scanner = FTPScanner(config)
-    found_servers = scanner.scan(args.input_file)
+    found_servers = scanner.execute_parallel_ftp_scan(args.input_file)
 
     # Output results
     print(f"\nScan Complete - Found {len(found_servers)} servers")
